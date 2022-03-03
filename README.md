@@ -1,22 +1,21 @@
 # SimpleBarcodeScanner
 
-<img src="https://i.ibb.co/pdHPdqN/Whats-App-Image-2022-03-03-at-7-32-05-AM.jpg" width="200" height="400">
+<img src="https://i.ibb.co/pdHPdqN/Whats-App-Image-2022-03-03-at-7-32-05-AM.jpg" width="260" height="520">
 
 1. Add jitpack.io to your project
 ```
   allprojects {
-		repositories {
-			...
-			maven { url 'https://jitpack.io' }
-		}
-	}
+     repositories {
+        maven { url 'https://jitpack.io' }
+     }
+  }
 ```
 
 2. Add simple barcode scanner to your project
 ```
   dependencies {
-	  implementation 'com.github.firdausmaulan:SimpleBarcodeScanner:Tag'
-	}
+     implementation 'com.github.firdausmaulan:SimpleBarcodeScanner:Tag'
+  }
 ```
 
 3. See example here
