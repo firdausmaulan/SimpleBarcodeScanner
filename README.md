@@ -1,7 +1,6 @@
 # SimpleBarcodeScanner
 
-![](https://i.ibb.co/pdHPdqN/Whats-App-Image-2022-03-03-at-7-32-05-AM.jpg)
-
+<img src="https://i.ibb.co/pdHPdqN/Whats-App-Image-2022-03-03-at-7-32-05-AM.jpg" width="200" height="400">
 
 1. Add jitpack.io to your project
 ```
