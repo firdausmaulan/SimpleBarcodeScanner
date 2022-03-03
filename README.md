@@ -14,7 +14,7 @@
 2. Add simple barcode scanner to your project
 ```
   dependencies {
-     implementation 'com.github.firdausmaulan:SimpleBarcodeScanner:Tag'
+     implementation 'com.github.firdausmaulan:SimpleBarcodeScanner:0.0.1'
   }
 ```
 
