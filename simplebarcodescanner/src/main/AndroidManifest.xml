@@ -6,7 +6,9 @@
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
-    <meta-data
-        android:name="com.google.mlkit.vision.DEPENDENCIES"
-        android:value="barcode" />
+    <application >
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode" />
+    </application>
 </manifest>

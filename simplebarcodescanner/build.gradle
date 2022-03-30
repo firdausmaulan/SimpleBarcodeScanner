@@ -47,7 +47,7 @@ dependencies {
     implementation "androidx.camera:camera-extensions:1.1.0-beta02"
 
     // Use this dependency to bundle the model with your app
-    api 'com.google.mlkit:barcode-scanning:17.0.2'
+    api 'com.google.android.gms:play-services-mlkit-barcode-scanning:18.0.0'
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
