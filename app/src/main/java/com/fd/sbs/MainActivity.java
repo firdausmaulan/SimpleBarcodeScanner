@@ -77,6 +77,7 @@ public class MainActivity extends AppCompatActivity implements SimpleScannerFrag
 
     @Override
     public void onScanResult(Barcode barcode) {
+        if (barcode == null) return;
         binding.tvResult.setText(barcode.getRawValue());
         Toast.makeText(this, barcode.getRawValue(), Toast.LENGTH_SHORT).show();
 
