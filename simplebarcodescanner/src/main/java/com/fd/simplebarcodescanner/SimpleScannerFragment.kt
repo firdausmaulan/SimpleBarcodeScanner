@@ -1,169 +1,182 @@
-package com.fd.simplebarcodescanner;
+package com.fd.simplebarcodescanner
 
-import android.Manifest;
-import android.annotation.SuppressLint;
-import android.content.pm.PackageManager;
-import android.media.Image;
-import android.os.Bundle;
-import android.util.Size;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.camera.core.Camera
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
+import com.fd.simplebarcodescanner.databinding.FragmentSimpleScannerBinding
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.common.InputImage
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.camera.core.Camera;
-import androidx.camera.core.CameraSelector;
-import androidx.camera.core.ImageAnalysis;
-import androidx.camera.core.ImageCapture;
-import androidx.camera.core.ImageProxy;
-import androidx.camera.core.Preview;
-import androidx.camera.lifecycle.ProcessCameraProvider;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-import androidx.fragment.app.Fragment;
+class SimpleScannerFragment : Fragment() {
+    private var binding: FragmentSimpleScannerBinding? = null
+    private var camera: Camera? = null
+    private var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>? = null
+    private var cameraExecutor: ExecutorService? = null
+    private val imageAnalyzer = ImageAnalyzer()
 
-import com.fd.simplebarcodescanner.databinding.FragmentSimpleScannerBinding;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.mlkit.vision.barcode.BarcodeScanner;
-import com.google.mlkit.vision.barcode.BarcodeScannerOptions;
-import com.google.mlkit.vision.barcode.BarcodeScanning;
-import com.google.mlkit.vision.barcode.common.Barcode;
-import com.google.mlkit.vision.common.InputImage;
+    private var imageAnalysis = ImageAnalysis.Builder()
+        .setResolutionSelector(
+            ResolutionSelector.Builder()
+                .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+                .build()
+        )
+        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+        .build()
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+    private var options = BarcodeScannerOptions.Builder().setBarcodeFormats(
+        Barcode.FORMAT_QR_CODE,
+        Barcode.FORMAT_CODE_128
+    ).build()
 
-public class SimpleScannerFragment extends Fragment {
-
-    public static int SimpleScannerRequestCode = 99;
-
-    private FragmentSimpleScannerBinding binding;
-    private Camera camera;
-    private ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
-    private ExecutorService cameraExecutor;
-    private final ImageAnalyzer imageAnalyzer = new ImageAnalyzer();
-
-    private ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
-            .setTargetResolution(new Size(1280, 720))
-            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-            .build();
-
-    private BarcodeScannerOptions options = new BarcodeScannerOptions.Builder().setBarcodeFormats(
-            Barcode.FORMAT_QR_CODE,
-            Barcode.FORMAT_CODE_128
-    ).build();
-
-    public void setImageAnalysis(ImageAnalysis imageAnalysis) {
-        this.imageAnalysis = imageAnalysis;
+    fun setImageAnalysis(imageAnalysis: ImageAnalysis) {
+        this.imageAnalysis = imageAnalysis
     }
 
-    public void setBarcodeScannerOption(BarcodeScannerOptions barcodeScannerOption) {
-        options = barcodeScannerOption;
+    fun setBarcodeScannerOption(barcodeScannerOption: BarcodeScannerOptions) {
+        options = barcodeScannerOption
     }
 
-    private ScanListener scanListener;
+    private var scanListener: ScanListener? = null
 
-    public interface ScanListener {
-        void onScanResult(Barcode barcode);
+    interface ScanListener {
+        fun onScanResult(barcode: Barcode?)
     }
 
-    @Nullable
-    @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        binding = FragmentSimpleScannerBinding.inflate(getLayoutInflater());
-        scanListener = (ScanListener) getActivity();
-        return binding.getRoot();
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): PreviewView? {
+        binding = FragmentSimpleScannerBinding.inflate(
+            layoutInflater
+        )
+        scanListener = requireActivity() as ScanListener
+        return binding?.root
     }
 
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-        if (getActivity() == null) return;
-        cameraExecutor = Executors.newSingleThreadExecutor();
-        cameraProviderFuture = ProcessCameraProvider.getInstance(getActivity());
-        cameraProviderFuture.addListener(() -> {
-            int cameraPermission = ActivityCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA);
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        if (!fragmentIsActive()) return
+        cameraExecutor = Executors.newSingleThreadExecutor()
+        cameraProviderFuture = ProcessCameraProvider.getInstance(requireActivity())
+        cameraProviderFuture?.addListener({
+            val cameraPermission = ActivityCompat.checkSelfPermission(
+                requireActivity(),
+                Manifest.permission.CAMERA
+            )
             if (cameraPermission == PackageManager.PERMISSION_GRANTED) {
-                bindPreview();
+                bindPreview()
             } else {
-                ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.CAMERA}, SimpleScannerRequestCode);
+                ActivityCompat.requestPermissions(
+                    requireActivity(),
+                    arrayOf(Manifest.permission.CAMERA),
+                    SimpleScannerRequestCode
+                )
             }
-        }, ContextCompat.getMainExecutor(getActivity()));
+        }, ContextCompat.getMainExecutor(requireActivity()))
     }
 
-    private void bindPreview() {
-        Preview preview = new Preview.Builder().build();
-        CameraSelector cameraSelector = new CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build();
-        preview.setSurfaceProvider(binding.previewView.getSurfaceProvider());
-        ImageCapture imageCapture = new ImageCapture.Builder().build();
-        startAnalyzer();
+    private fun bindPreview() {
+        val preview = Preview.Builder().build()
+        val cameraSelector = CameraSelector.Builder().requireLensFacing(
+            CameraSelector.LENS_FACING_BACK
+        ).build()
+        preview.surfaceProvider = binding?.previewView?.surfaceProvider
+        val imageCapture = ImageCapture.Builder().build()
+        startAnalyzer()
         try {
-            cameraProviderFuture.get().unbindAll();
-            camera = cameraProviderFuture.get().bindToLifecycle(
-                    this,
-                    cameraSelector,
-                    preview,
-                    imageCapture,
-                    imageAnalysis
-            );
-        } catch (Exception e) {
-            e.printStackTrace();
+            cameraProviderFuture?.get()?.unbindAll()
+            camera = cameraProviderFuture?.get()?.bindToLifecycle(
+                this,
+                cameraSelector,
+                preview,
+                imageCapture,
+                imageAnalysis
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
-    public void startAnalyzer() {
-        imageAnalysis.setAnalyzer(cameraExecutor, imageAnalyzer);
+    fun startAnalyzer() {
+        cameraExecutor?.let { imageAnalysis.setAnalyzer(it, imageAnalyzer) }
     }
 
-    public void stopAnalyzer() {
-        imageAnalysis.clearAnalyzer();
+    fun stopAnalyzer() {
+        imageAnalysis.clearAnalyzer()
     }
 
-    public void turnOnFlashLight() {
-        if (camera != null && camera.getCameraInfo().hasFlashUnit()) {
-            camera.getCameraControl().enableTorch(true);
+    fun turnOnFlashLight() {
+        if (camera != null && camera?.cameraInfo?.hasFlashUnit() == true) {
+            camera?.cameraControl?.enableTorch(true)
         }
     }
 
-    public void turnOffFlashLight() {
-        if (camera != null && camera.getCameraInfo().hasFlashUnit()) {
-            camera.getCameraControl().enableTorch(false);
+    fun turnOffFlashLight() {
+        if (camera != null && camera?.cameraInfo?.hasFlashUnit() == true) {
+            camera?.cameraControl?.enableTorch(false)
         }
     }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        if (camera != null) startAnalyzer();
+    override fun onResume() {
+        super.onResume()
+        if (camera != null) startAnalyzer()
     }
 
-    @Override
-    public void onPause() {
-        super.onPause();
-        if (camera != null) stopAnalyzer();
+    override fun onPause() {
+        super.onPause()
+        if (camera != null) stopAnalyzer()
     }
 
-    class ImageAnalyzer implements ImageAnalysis.Analyzer {
+    private fun fragmentIsActive(): Boolean {
+        return activity != null && !isDetached
+    }
 
-        @Override
-        public void analyze(@NonNull ImageProxy image) {
-            scanBarcode(image);
+    internal inner class ImageAnalyzer : ImageAnalysis.Analyzer {
+        override fun analyze(image: ImageProxy) {
+            scanBarcode(image)
         }
     }
 
-    private void scanBarcode(ImageProxy image) {
-        @SuppressLint("UnsafeOptInUsageError") Image myImage = image.getImage();
+    private fun scanBarcode(image: ImageProxy) {
+        @SuppressLint("UnsafeOptInUsageError") val myImage = image.image
         if (myImage != null) {
-            InputImage inputImage = InputImage.fromMediaImage(myImage, image.getImageInfo().getRotationDegrees());
+            val inputImage = InputImage.fromMediaImage(myImage, image.imageInfo.rotationDegrees)
 
-            BarcodeScanner scanner = BarcodeScanning.getClient(options);
+            val scanner = BarcodeScanning.getClient(options)
 
             scanner.process(inputImage)
-                    .addOnSuccessListener(barcodes -> {
-                        if (barcodes.size() > 0) scanListener.onScanResult(barcodes.get(0));
-                    })
-                    .addOnCompleteListener(task -> image.close());
+                .addOnSuccessListener { barcodes: List<Barcode?> ->
+                    if (barcodes.isNotEmpty()) scanListener?.onScanResult(barcodes[0])
+                }
+                .addOnCompleteListener { image.close() }
         }
+    }
+
+    companion object {
+        @JvmField
+        var SimpleScannerRequestCode: Int = 99
     }
 }
