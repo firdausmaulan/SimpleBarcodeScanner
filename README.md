@@ -19,4 +19,4 @@
 ```
 
 3. See example here
-   https://github.com/firdausmaulan/SimpleBarcodeScanner/blob/master/app/src/main/java/com/fd/sbs/MainActivity.java
+   [https://github.com/firdausmaulan/SimpleBarcodeScanner/blob/master/app/src/main/java/com/fd/sbs/MainActivity.kt](https://github.com/firdausmaulan/SimpleBarcodeScanner/blob/master/app/src/main/java/com/fd/sbs/MainActivity.kt)
